@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Prediction History</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 40px;
+      background: #f9f9f9;
+      color: #333;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 28px;
+      color: #2c3e50;
+    }
+
+    .actions {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .actions a {
+      display: inline-block;
+      margin: 0 10px;
+      padding: 10px 15px;
+      background-color: #2980b9;
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+      border-radius: 6px;
+      transition: background-color 0.3s ease;
+    }
+
+    .actions a:hover {
+      background-color: #1c5980;
+    }
+
+    .filters {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .filters input, .filters select, .filters button {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    .filters button {
+      background-color: #c0392b;
+      color: white;
+      cursor: pointer;
+    }
+
+    .filters button:hover {
+      background-color: #992d22;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    thead th {
+      background-color: #eeeeee;
+      color: #333;
+      font-weight: bold;
+      padding: 12px 8px;
+      text-align: center;
+    }
+
+    tbody td {
+      padding: 10px 8px;
+      border-top: 1px solid #ccc;
+      text-align: center;
+    }
+
+    tbody tr:nth-child(even) {
+      background-color: #f7f7f7;
+    }
+
+    tbody tr:hover {
+      background-color: #eef5ff;
+    }
+
+    .no-history {
+      text-align: center;
+      font-style: italic;
+      color: #999;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Prediction History</h1>
+
+  <div class="actions">
+    <a href="/">← Back to Input Form</a>
+    <a href="/download-history">⬇️ Download as Excel</a>
+  </div>
+
+  <div class="filters">
+    <input type="text" id="searchBox" placeholder="Search any field..." onkeyup="filterTable()" />
+    <select id="riskFilter" onchange="filterTable()">
+      <option value="">All Risk Categories</option>
+      <option value="Low">Low</option>
+      <option value="Medium">Medium</option>
+      <option value="High">High</option>
+    </select>
+    <button onclick="clearFilters()">Clear Filters</button>
+  </div>
+
+  <table id="historyTable">
+    <thead>
+      <tr>
+         <th>Prediction Time</th>
+      <th>Diabetes</th>
+      <th>A1c %</th>
+      <th>eGFR</th>
+      <th>Urine Microalbumin (mg/L)</th>
+      <th>Serum Creatinine (µmol/L)</th>
+      <th>Cholesterol (mmol/L)</th>
+      <th>Age</th>
+      <th>SBP (mmHg)</th>
+      <th>BMI (kg/m²)</th>
+      <th>LDL (mmol/L)</th>
+      <th>Risk Score</th>
+      <th>Category</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+      <td>{{ log.Prediction_Time.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+      <td>{{ log.Diabetes_Status }}</td>
+      <td>{{ log.A1c_Percent }}</td>
+      <td>{{ log.eGFR }}</td>
+      <td>{{ log.Urine_Microalbumin_mg_L }}</td>
+      <td>{{ log.Serum_Creatinine_umol_L }}</td>
+      <td>{{ log.Fasting_Venous_Cholesterol_mmol_L }}</td>
+      <td>{{ log.Age }}</td>
+      <td>{{ log.Ave_SBP_mmHg }}</td>
+      <td>{{ log.BMI_kg_m2 }}</td>
+      <td>{{ log.LDL_mmol_L }}</td>
+      <td>{{ "%.3f"|format(log.Risk_Score) }}</td>
+      <td>{{ log.Risk_Category }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="14" class="no-history">No prediction history available.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <script>
+    function filterTable() {
+      const searchInput = document.getElementById('searchBox').value.toLowerCase();
+      const riskValue = document.getElementById('riskFilter').value;
+      const table = document.getElementById('historyTable');
+      const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+      for (let i = 0; i < rows.length; i++) {
+        const cells = rows[i].getElementsByTagName('td');
+        let rowContainsText = false;
+
+        for (let j = 0; j < cells.length; j++) {
+          const cellText = cells[j].textContent.toLowerCase();
+          if (cellText.includes(searchInput)) {
+            rowContainsText = true;
+          }
+        }
+
+        const riskCategory = cells[13]?.textContent.trim();
+        const riskMatches = !riskValue || riskCategory === riskValue;
+
+        if (rowContainsText && riskMatches) {
+          rows[i].style.display = '';
+        } else {
+          rows[i].style.display = 'none';
+        }
+      }
+    }
+
+    function clearFilters() {
+      document.getElementById('searchBox').value = '';
+      document.getElementById('riskFilter').value = '';
+      filterTable();
+    }
+  </script>
+</body>
+</html>

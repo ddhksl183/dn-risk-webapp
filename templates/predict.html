@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DN Risk Prediction</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #e0f7f1, #fef4e5);
+    }
+    .container {
+      background: #ffffff;
+      padding: 30px 40px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      width: 850px;
+      max-width: 95%;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 24px;
+      color: #00695c;
+      font-size: 1.9rem;
+      font-weight: bold;
+    }
+    form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px 24px;
+    }
+    label {
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 4px;
+      display: block;
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1.5px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    input[type="number"]:focus {
+      border-color: #00897b;
+      outline: none;
+      box-shadow: 0 0 6px rgba(0, 137, 123, 0.25);
+    }
+    button {
+      grid-column: span 2;
+      margin-top: 10px;
+      padding: 12px;
+      background-color: #ff7043;
+      color: white;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background-color: #e64a19;
+    }
+    .results {
+      margin-top: 25px;
+      padding: 20px;
+      background: #f1f8f6;
+      border: 1px solid #aed6cd;
+      border-radius: 10px;
+      text-align: center;
+      color: #2c3e50;
+      font-weight: 600;
+    }
+    .results h2 {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: #00796b;
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      margin-top: 6px;
+    }
+    .low { background-color: #43a047; color: white; }
+    .moderate { background-color: #ffa726; color: white; }
+    .high { background-color: #ef5350; color: white; }
+    a.history-link {
+      display: block;
+      margin-top: 20px;
+      text-align: center;
+      font-weight: 600;
+      color: #00796b;
+      text-decoration: none;
+    }
+    a.history-link:hover {
+      text-decoration: underline;
+    }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #e53935;
+      color: #fff;
+      padding: 14px 20px;
+      border-radius: 8px;
+      display: none;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 9999;
+    }
+    .loading::after {
+      content: ' ⏳';
+      animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      100% { opacity: 0.5; }
+    }
+    @media (max-width: 600px) {
+      .container { padding: 20px; }
+    }
+    #shap-chart {
+      margin-top: 30px;
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Diabetic Nephropathy Risk Prediction</h1>
+    <form method="POST" onsubmit="return validateForm(this)">
+      <div>
+        <label for="Diabetes_Status">Diabetes Status (0 = No, 1 = Yes):</label>
+        <input id="Diabetes_Status" name="Diabetes_Status" type="number" min="0" max="1" required />
+      </div>
+
+      <div>
+        <label for="A1c_Percent">A1c Percent (4.0 – 15.0):</label>
+        <input id="A1c_Percent" name="A1c_Percent" type="number" step="0.01" min="4" max="15" required />
+      </div>
+
+      <div>
+        <label for="eGFR">eGFR (mL/min/1.73m²) (0 – 120):</label>
+        <input id="eGFR" name="eGFR" type="number" step="0.01" min="0" max="120" required />
+      </div>
+
+      <div>
+        <label for="Urine_Microalbumin_mg_L">Urine Microalbumin (mg/L) (0 – 300):</label>
+        <input id="Urine_Microalbumin_mg_L" name="Urine_Microalbumin_mg_L" type="number" step="0.01" min="0" max="300" required />
+      </div>
+
+      <div>
+        <label for="Serum_Creatinine_umol_L">Serum Creatinine (umol/L) (40 – 400):</label>
+        <input id="Serum_Creatinine_umol_L" name="Serum_Creatinine_umol_L" type="number" step="0.01" min="40" max="400" required />
+      </div>
+
+      <div>
+        <label for="Fasting_Venous_Cholesterol_mmol_L">Cholesterol (mmol/L) (2.0 – 10.0):</label>
+        <input id="Fasting_Venous_Cholesterol_mmol_L" name="Fasting_Venous_Cholesterol_mmol_L" type="number" step="0.01" min="2.0" max="10.0" required />
+      </div>
+
+      <div>
+        <label for="Age">Age (18 – 90):</label>
+        <input id="Age" name="Age" type="number" min="18" max="90" required />
+      </div>
+
+      <div>
+        <label for="Ave_SBP_mmHg">Average SBP (mmHg) (90 – 200):</label>
+        <input id="Ave_SBP_mmHg" name="Ave_SBP_mmHg" type="number" step="0.01" min="90" max="200" required />
+      </div>
+
+      <div>
+        <label for="BMI_kg_m2">BMI (kg/m²) (10 – 60):</label>
+        <input id="BMI_kg_m2" name="BMI_kg_m2" type="number" step="0.01" min="10" max="60" required />
+      </div>
+
+      <div>
+        <label for="LDL_mmol_L">LDL (mmol/L) (1.0 – 6.0):</label>
+        <input id="LDL_mmol_L" name="LDL_mmol_L" type="number" step="0.01" min="1.0" max="6.0" required />
+      </div>
+
+      <button id="submitBtn" type="submit">Predict Risk</button>
+    </form>
+
+    {% if risk_score is defined and risk_category is defined %}
+    <div class="results">
+      <h2>Prediction Result</h2>
+      <p><strong>Risk Score:</strong> {{ "%.3f"|format(risk_score) }}</p>
+      <p><strong>Risk Category:</strong>
+        <span class="badge {% if risk_category == 'Low Risk' %}low{% elif risk_category == 'Intermediate Risk' %}moderate{% else %}high{% endif %}">
+          {{ risk_category }}
+        </span>
+      </p>
+    </div>
+
+    <canvas id="shap-chart" style="max-width: 320px; margin: 0 auto;"></canvas>
+    <script>
+      const shapData = JSON.parse('{{ shap_data|safe }}');
+      const ctx = document.getElementById('shap-chart').getContext('2d');
+      const shapChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: Object.keys(shapData),
+          datasets: [{
+            label: 'SHAP Feature Contribution',
+            data: Object.values(shapData).map(Math.abs),
+            backgroundColor: [
+              '#26a69a', '#ffca28', '#ef5350', '#66bb6a', '#42a5f5',
+              '#ab47bc', '#ffa726', '#8d6e63', '#5c6bc0', '#26c6da'
+            ],
+            borderColor: '#fff',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'bottom' },
+            title: { display: true, text: 'SHAP Value Feature Importance' }
+          }
+        }
+      });
+    </script>
+    {% endif %}
+
+    <a href="/history" class="history-link">View Prediction History →</a>
+  </div>
+
+  <div id="toast" class="toast">Please fill in all fields correctly.</div>
+  <script>
+    function validateForm(form) {
+      let valid = true;
+      const fields = form.querySelectorAll("input[type='number']");
+      fields.forEach(field => {
+        if (!field.value || isNaN(field.value)) {
+          valid = false;
+        }
+      });
+      if (!valid) {
+        const toast = document.getElementById("toast");
+        toast.style.display = "block";
+        setTimeout(() => { toast.style.display = "none"; }, 3000);
+        return false;
+      }
+      const btn = document.getElementById("submitBtn");
+      btn.classList.add("loading");
+      btn.disabled = true;
+      return true;
+    }
+  </script>
+</body>
+</html>
