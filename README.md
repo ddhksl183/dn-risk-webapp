@@ -17,5 +17,4 @@ This is a machine learning-based Flask web application that predicts the risk of
 - Pandas, NumPy, SHAP
 - HTML/CSS (Jinja templates)
 
-## How to Run
-1. Clone this repository:
+
